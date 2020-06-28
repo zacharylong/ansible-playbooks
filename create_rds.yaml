@@ -1,0 +1,47 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      #profile: auburn
+      region: "us-east-2"
+  tasks:
+
+    - name: Create RDS Subnet Group
+      rds_subnet_group:
+        state: present
+        name: m5-ig-dbgroup
+        description: M5 DB Subnet Group
+        subnets:
+          - "{{ private_subnet_2.subnet.id }}"
+          - "{{ private_subnet.subnet.id }}"
+      register: rds_subnet_group
+
+    - name: Restore RDS from snapshot
+      local_action:
+        module: rds
+        command: restore
+        snapshot: m5-image-gallery-snapshot
+        instance_name: m5-ig-rds
+        region: us-east-2
+        zone: us-east-2b
+        subnet: "{{ rds_subnet_group.subnet_group.name }}"
+        publicly_accessible: no
+        wait: yes
+        wait_timeout: 600
+        tags:
+            Name: M5-ig-rds-restore
+      register: rds
+
+    - name: Modify RDS
+      local_action:
+        module: rds
+        command: modify
+        instance_name: m5-ig-rds
+        region: us-east-2
+        vpc_security_groups: ["{{ sg_userservice.group_id }}", "{{ developer_sg.group_id }}"]
+        apply_immediately: yes
+
+    - name: Debug RDS
+      debug:
+        msg: "The new db endpoint is {{ rds.instance.endpoint }}"

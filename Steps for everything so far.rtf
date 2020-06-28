@@ -1,0 +1,194 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2513
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww12100\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 Playbook to Create:\
+\
+VPC\
+Auto-Scaler\
+Load Balancer\
+\
+Module3\
+1. \'97VPC\'97\
+Create VPC\
+CIDR Block: 10.0.0.0/16\
+\
+2. Create Subnet\
+Public subnet\
+assign VPC created above via ansible reference\
+Availability Zone store -> Variable, us-east-2a\
+CIDR: 10.0.1.0/24\
+\
+3. Create private subnet\
+assign same VPC as above\
+assign availability zone\
+different CIDR 10.0.2.0/24\
+\
+4. Create route table for public subnet\
+assign to VPC\
+\
+5. Create internet gateway\
+name: demo-igw\
+attach to VPC just created\
+\
+6. Edit routes for route table\
+public route table\
+edit routes\
+add route -> 0.0.0.0/0 goes to igw just created\
+edit subnet association - public subnet just created\
+\
+7. Create NAT gateway\
+put it in the public subnet (so it can see out)\
+Needs elastic IP address\
+(takes a while)\
+\
+8. Create private route table\
+name: demo-private-rt\
+assign to demo-vpc\
+\
+9. Edit routes for private route table\
+0.0.0.0/0 -> NAT gateway\
+associate it with a subnet - private subnet\
+\
+10. Create 2 EC2 instances (one in each subnet)\
+create ec2\
+assign to vpc\
+assign to public subnet\
+assign with access key\
+name - public-ec2\
+tags\
+\
+11 Create EC2 in private subnet\
+assign vpc\
+assign private subnet\
+auburnec2 access key\
+name - private-ec2\
+tags\
+\
+12 Allocate elastic IP with the public EC2\
+\
+13 Jumphost to access private EC2?\
+ssh -J (public IP) (private IP)\
+\
+(or use agent forwarding)\
+ssh -A \
+\
+14 Create network ACL\
+name: demo-public-acl\
+assign vpc\
+\
+15 assign acl inboud and outbound rules\
+inbound rule #100 tcp ssh port 22 allow from anywhere\
+outbound rulee #900 tcp ephemeral port range 1024-65535, allow\
+\
+16 assign acl to a subnet\
+assign to public subnet\
+\
+17 open public acl rules\
+outbound rules allow http port 80, allow ssh port 22\
+inbound rule #900 allow tcp ports 1024-65535 (ephemeral ports) \
+\
+18 create tag security groups\
+name: sec-userservice\
+description: allow connections to user service from tagged machines\
+vpc: assigned\
+\
+create second security group\
+name: sec-userservice-tag\
+desc: instances tagged with this group can contact user services\
+outbound rule: allow custom tcp, port 8080, destination: security group you just created, sec-userservice\
+\
+back to other security group, sec-userservice\
+allow inbound traffic from port 8080 from security group: sec-userservice-tag\
+\
+19 Create flow log?\
+default vpc -> enable flow logs\
+reject/accept/all\
+interval - 1min\
+Needs a log group!\
+Create Log group first\
+Cloudwatch - Log Group - Create Log Group \
+Name: /aws/vpc/default/flowlogs\
+\
+Back to create flow log:\
+destination log group: /aws/vpc/default/flowlog\
+IAM role: > set up permissions (external click) > create default flowlogsRole\
+format: aws default format\
+\
+20 Secrets Manager\
+store a new secret\
+credentials for rds database\
+username: postgres\
+password: <<current postgres user\'92s password>>\
+which database: demo-database-1 (MUST BE CREATED)\
+secret name: sec-ig-postgres\
+disable automatic rotation (modify it later)\
+store secret\
+\
+store a new secret\
+username: image_gallery\
+password: <<current password>>\
+secret name: sec-ig-image_gallery\
+store secret\
+add secret value for database name (next step)\
+\
+21 Set up python code (already done)\
+!!edit secret value: add database name!!\
+\
+22 Start rotation\
+enable automatic rotation\
+create a new lambda function\
+name: sec-ig-postgres-lambda\
+select which secret: use this secret\
+\
+23 Fix Lambda/Security group\
+Edit VPC ->\
+subnet- public subnet\
+add to same security group as secret manager\
+Do the secretsmanager tag thing with security groups\
+create endpoint for the secretsmanager in the vpc\
+\
+VPC -> ENdpoint\
+create endpoint\
+service name: secretsmanagere\
+subnets: all 3\
+enable dns name: enable for this endpoint\
+security group: default group\
+\
+24. turn on secerts rotation for image gallery\
+enable automatic rotation\
+create new lambda function: sec-ig-image_gallery_lambda\
+use this secret\
+\
+25 fix lambda function for image_gallery_lambda\
+Lambda \
+edit VPC\
+custom vpc\
+switch to default vpc\
+public subnet a\
+put in correct security group\
+\
+26 Create bucket\
+s3 - create bucket\
+name: edu.au.cc.unique-private-images\
+region: us-east-2\
+\
+s3 - create bucket\
+name: edu.au.cc.unique-public-images\
+region: us-east-2\
+turn off block all public access\
+\
+27. Create the database\
+RDS\
+create database\
+choose: postgres\
+name: demo-database-1\
+master username: postgres\
+master password: postgres (Will change later with secrets rotation)\
+vpc: image-gallery-vpc\
+database authentication options: password authentication\
+enable automatic backups\
+}

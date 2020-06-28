@@ -1,0 +1,28 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      #profile: auburn
+      region: "us-east-2"
+  tasks:
+
+    - name: Create S3 Private Images Bucket
+      s3_bucket:
+        name: edu.au.cc.m5-private-images-superunique
+        state: present
+
+    - name: Create S3 Public Images Bucket
+      s3_bucket:
+        name: edu.au.cc.m5-public-images-superunique
+        state: present
+
+    - name: Create S3 Image-Gallery Bucket
+      s3_bucket:
+        name: edu.au.cc.m5-image-gallery-superunique
+        state: present
+
+    - name: Create S3 Image-Gallery Config Bucket
+      s3_bucket:
+        name: edu.au.cc.m5-image-gallery-superunique-config
+        state: present

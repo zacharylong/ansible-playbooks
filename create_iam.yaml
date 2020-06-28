@@ -1,0 +1,34 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    ami_id: "ami-026dea5602e368e96"
+  module_defaults:
+      group/aws:
+        #profile: auburn
+        region: "us-east-2"
+  tasks:
+
+    - name: Create policy to allow s3 bucket access
+      iam_policy:
+        iam_type: role
+        iam_name: m5-image-gallery
+        policy_name: m5-image-gallery-s3-policy
+        state: present
+        policy_document: './scripts/iam_s3_policy.json'
+      register: iam_policy
+
+    - name: "Create a role and attach a managed policy called 'PowerUserAccess'"
+      iam_role:
+        name: m5-image-gallery-server-role
+        #assume_role_policy_document: './scripts/iam_trust_policy.json'
+        assume_role_policy_document: "{{ lookup('file','policy.json') }}"
+        #assume_role_policy_document: "{{ lookup('file','./scripts/iam_s3_policy.json') }}"
+        description: Role used by the image gallery server application
+        managed_policy:
+        #   - "{{ lookup('file', './scripts/iam_s3_policy.json') }}"
+          - arn:aws:iam::aws:policy/AdministratorAccess
+          - arn:aws:iam::594209649798:policy/m5-image-gallery-s3-policy
+      register: iam_s3_role
+
+

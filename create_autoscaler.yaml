@@ -1,0 +1,88 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      #profile: auburn
+      region: "us-east-2"
+  vars: 
+    network_interface_config: {
+      "description": "M5 autoscaler template",
+      "associate_public_ip_address": "yes",
+      "device_index": 0,
+      "groups": [
+        "{{ developer_sg.group_id }}", 
+        "{{ sg_userservice_tag.group_id }}", 
+        "{{ nginx_sg.group_id }}"
+      ],
+      "subnet_id": "{{ public_subnet.subnet.id }}"
+    }
+
+  tasks:
+
+      - name: Create nginx security group
+        ec2_group:
+          name: nginx-servers
+          description: Nginx load balanced servers
+          vpc_id: "{{ vpc.vpc.id }}"
+          rules:
+            - proto: tcp
+              ports:
+              - 22
+              - 80
+              cidr_ip: 0.0.0.0/0
+              rule_desc: allow ssh and http on port 22 and 80
+          state: present
+        register: nginx_sg
+
+      - name: Debug iam_role
+        debug:
+          msg: "Current output of arn is {{ iam_s3_role.iam_role.arn }} -- and the role name is {{ iam_s3_role.iam_role.role_name }}" 
+
+      - name: Create ec2 launch template
+        ec2_launch_template:
+          state: present
+          name: "m5-image-gallery-lt"
+          image_id: "ami-026dea5602e368e96"
+          key_name: auburnec2
+          instance_type: t3.nano
+          iam_instance_profile: "{{ iam_s3_role.iam_role.role_name }}"
+          disable_api_termination: false
+          # security_group_ids:
+          #   - "{{ nginx_sg.group_id }}"
+          tags:
+            Name: m5-asg-server
+          user_data: "{{ lookup('file', './scripts/ec2_startup.sh') | b64encode }}"
+          monitoring:
+            enabled: yes
+          network_interfaces: 
+          #  - "{{ network_interface_config | to_json }}"
+          network_interfaces:
+            - device_index: 0
+              description: M5 autoscaler template
+              associate_public_ip_address: yes
+              groups: ["{{ developer_sg.group_id }}", "{{ sg_userservice_tag.group_id }}", "{{ nginx_sg.group_id }}"]
+              subnet_id: "{{ public_subnet.subnet.id }}"
+          register: ec2_launch_template
+
+      - name: Create Autoscaling group
+        ec2_asg:
+          name: m5-image-gallery-asg
+          load_balancers: [ 'lb1', 'lb2' ]
+          availability_zones: [ 'eu-west-1a', 'eu-west-1b' ]
+          launch_template: 
+            - launch_template_id: "{{ ec2_launch_template.latest_version }}"
+          min_size: 2
+          max_size: 4
+          desired_capacity: 2
+          target_group_arns: 
+            - "{{ target_group.target_group_arn }}"
+          vpc_zone_identifier: [ "{{ public_subnet.subnet.id }}", "{{ public_subnet_2.subnet.id }}" ]
+          tags:
+            - Module: 5
+              propagate_at_launch: no
+          wait_for_instances: yes
+          state: present
+        register: auto_scaling_group
+
+          

@@ -1,0 +1,48 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    ami_id: "ami-026dea5602e368e96"
+  module_defaults:
+      group/aws:
+        #profile: auburn
+        region: "us-east-2"
+  tasks:
+  
+    - name: Create EC2 in Public Subnet
+      ec2: 
+        key_name: auburnec2
+        group: 
+          - "{{ sg_userservice_tag.group_name }}"
+          - "{{ developer_sg.group_name }}"
+        instance_type: t3.nano
+        image: "{{ ami_id }}"
+        instance_tags:
+          Name: Mod5 Public EC2
+          Module: 5
+          #Department: Accounting
+        wait: yes
+        vpc_subnet_id: "{{ public_subnet.subnet.id }}"
+        assign_public_ip: yes
+        exact_count: 1
+        count_tag:
+          Name: Mod5 Public EC2
+
+    - name: Create Ec2 in Private Subnet
+      ec2: 
+        key_name: auburnec2
+        group: 
+          - "{{ developer_sg.group_name }}"
+          - "{{ sg_userservice_tag.group_name }}"
+        instance_type: t3.nano
+        image: "{{ ami_id }}"
+        instance_tags:
+          Name: Mod5 Private EC2
+          Module: 5
+          Department: Accounting
+        wait: yes
+        vpc_subnet_id: "{{ private_subnet.subnet.id }}"
+        assign_public_ip: yes
+        exact_count: 1
+        count_tag:
+          Name: Mod5 Private EC2

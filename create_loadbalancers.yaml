@@ -1,0 +1,39 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      #profile: auburn
+      region: "us-east-2"
+  tasks:
+
+    - name: Create Load Balancer
+      local_action:
+        module: ec2_elb_lb
+        state: present
+        name: 'm5-image-gallery-nlb'
+        scheme: internet-facing
+        security_group_ids: "{{ sg_userservice_tag.group_id }}, {{ developer_sg.group_id }}"
+        subnets: "{{ public_subnet.subnet.id }},{{ public_subnet_2.subnet.id }}"
+        #zones: us-east-2a, us-east-2b
+        listeners:
+          - protocol: http
+            load_balancer_port: 80
+            instance_port: 80
+          - protocol: https
+            load_balancer_port: 443
+            instance_port: 443
+            ssl_certificate_id: "arn:aws:acm:us-east-2:594209649798:certificate/1ce86900-6b20-46e3-94d1-ee9b96fa27c4"
+        tags:
+          Name: "M5 Load Balancer"
+          Module: 5
+        wait: yes
+
+    - name: Create Target Group
+      elb_target_group:
+        name: m5-target-group
+        protocol: tcp
+        port: 80
+        vpc_id: "{{ vpc.vpc.id }}"
+        state: present
+      register: target_group
