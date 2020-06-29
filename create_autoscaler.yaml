@@ -30,8 +30,9 @@
               ports:
               - 22
               - 80
+              - 443
               cidr_ip: 0.0.0.0/0
-              rule_desc: allow ssh and http on port 22 and 80
+              rule_desc: allow ssh and http on port 22 and 80 (and now port 443 for https)
           state: present
         register: nginx_sg
 
@@ -78,13 +79,23 @@
           min_size: 2
           max_size: 4
           desired_capacity: 2
+          #health_check_period: 60
+          #health_check_type: ELB
+          health_check_type: EC2
+          suspend_processes: [ HealthCheck ]
+          replace_all_instances: yes
           target_group_arns: 
             - "{{ target_group.target_group_arn }}"
           vpc_zone_identifier: [ "{{ public_subnet.subnet.id }}", "{{ public_subnet_2.subnet.id }}" ]
           tags:
             - Module: 5
               propagate_at_launch: no
-          wait_for_instances: yes
+          wait_for_instances: no
         register: auto_scaling_group
+
+        # terminate all instances to make them "healthy" like piazza @210
+
+
+
 
           

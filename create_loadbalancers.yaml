@@ -42,6 +42,8 @@
         # health_check_path: /
         # successful_response_codes: "200"
         # health_check_interval: "30"
+        health_check_path: /
+        successful_response_codes: "200,250-260"
         state: present
       register: target_group
     
@@ -51,6 +53,11 @@
         state: absent
         wait: yes
         wait_timeout: 600
+
+    - name: sleep for 150 seconds to let the elastic IPs release and then continue with play 
+      wait_for:
+        timeout: 60
+      delegate_to: localhost
 
     - name: allocate 1st eip - reuse unallocted ips if tag reserved is nope
       ec2_eip:

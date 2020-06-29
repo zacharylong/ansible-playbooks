@@ -55,7 +55,7 @@
     - name: Create Second Private Subnet for RDS
       ec2_vpc_subnet:
         vpc_id: "{{ vpc.vpc.id }}"
-        az: us-east-2b
+        az: "us-east-2b"
         tags:
           Name: Image Gallery Private 2
           Module: 5

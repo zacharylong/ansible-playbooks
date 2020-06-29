@@ -1,0 +1,9 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      #profile: auburn
+      region: "us-east-2"
+  tasks:
+

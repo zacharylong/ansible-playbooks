@@ -1,0 +1,21 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      #profile: auburn
+      #region: "us-east-2"
+  tasks:
+
+    - name: Update A record for Route 53 with Load Balancer IPs
+      route53:
+        state: present
+        zone: whoiszac.com
+        record: whoiszac.com
+        overwrite: yes
+        type: A
+        ttl: 7200
+        value:
+          - "{{ eip_1.public_ip }}"
+          - "{{ eip_2.public_ip }}"
+        wait: yes
