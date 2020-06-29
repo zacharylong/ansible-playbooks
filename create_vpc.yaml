@@ -78,6 +78,7 @@
           Name: Module5
         subnets:
           - "{{ public_subnet.subnet.id }}"
+          - "{{ public_subnet_2.subnet.id }}"
         routes: 
           - dest: 0.0.0.0/0
             gateway_id: "{{ igw.gateway_id }}"
@@ -106,11 +107,19 @@
         state: present
       register: new_nat_gateway
 
+    - name: Create 2nd NAT
+      ec2_vpc_nat_gateway:
+        if_exist_do_not_create: yes
+        subnet_id: "{{ public_subnet_2.subnet.id }}"
+        wait: yes
+        state: present
+      register: new_nat_gateway_2
+
     - name: "Create and associate production DMZ network ACL with DMZ subnets"
       ec2_vpc_nacl:
         vpc_id: "{{ vpc.vpc.id }}"
         name: m5-public-acl
-        subnets: ["{{ public_subnet.subnet.id }}", "{{ private_subnet.subnet.id }}"]
+        subnets: ["{{ public_subnet.subnet.id }}", "{{ private_subnet.subnet.id }}", "{{ public_subnet_2.subnet.id }}", "{{ private_subnet_2.subnet.id }}"]
         tags:
           Name: M5 Public ACL
           Module: 5

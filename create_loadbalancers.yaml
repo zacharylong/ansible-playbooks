@@ -83,7 +83,7 @@
         tag_value: yep
       register: eip_2
 
-    - name: tag the 2nsd elastic IP
+    - name: tag the 2nd elastic IP
       ec2_tag:
         resource: "{{ eip_2.allocation_id }}"
         tags:
