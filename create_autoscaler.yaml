@@ -82,7 +82,7 @@
           #health_check_period: 60
           #health_check_type: ELB
           health_check_type: EC2
-          suspend_processes: [ HealthCheck ]
+          #suspend_processes: [ HealthCheck ]
           replace_all_instances: yes
           target_group_arns: 
             - "{{ target_group.target_group_arn }}"
