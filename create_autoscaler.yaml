@@ -35,9 +35,9 @@
           state: present
         register: nginx_sg
 
-      - name: Debug iam_role
-        debug:
-          msg: "Current output of arn is {{ iam_s3_role.iam_role.arn }} -- and the role name is {{ iam_s3_role.iam_role.role_name }}" 
+      # - name: Debug iam_role
+      #   debug:
+      #     msg: "Current output of arn is {{ iam_s3_role.iam_role.arn }} -- and the role name is {{ iam_s3_role.iam_role.role_name }}" 
 
       - name: Create ec2 launch template
         ec2_launch_template:
@@ -55,7 +55,7 @@
           user_data: "{{ lookup('file', './scripts/ec2_startup.sh') | b64encode }}"
           monitoring:
             enabled: yes
-          network_interfaces: 
+          # network_interfaces: 
           #  - "{{ network_interface_config | to_json }}"
           network_interfaces:
             - device_index: 0
@@ -63,15 +63,18 @@
               associate_public_ip_address: yes
               groups: ["{{ developer_sg.group_id }}", "{{ sg_userservice_tag.group_id }}", "{{ nginx_sg.group_id }}"]
               subnet_id: "{{ public_subnet.subnet.id }}"
-          register: ec2_launch_template
+        register: ec2_launch_template
 
       - name: Create Autoscaling group
         ec2_asg:
+          state: present
           name: m5-image-gallery-asg
-          load_balancers: [ 'lb1', 'lb2' ]
-          availability_zones: [ 'eu-west-1a', 'eu-west-1b' ]
+          #load_balancers: [ "{{ load_balancer.load_balancer_name }}", ]
+          availability_zones: [ 'us-east-2a', 'us-east-2b' ]
           launch_template: 
-            - launch_template_id: "{{ ec2_launch_template.latest_version }}"
+            version: $Latest
+            launch_template_name: m5-image-gallery-lt
+            #launch_template_id: 
           min_size: 2
           max_size: 4
           desired_capacity: 2
@@ -82,7 +85,6 @@
             - Module: 5
               propagate_at_launch: no
           wait_for_instances: yes
-          state: present
         register: auto_scaling_group
 
           

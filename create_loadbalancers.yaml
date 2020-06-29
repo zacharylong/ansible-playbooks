@@ -7,33 +7,165 @@
       region: "us-east-2"
   tasks:
 
-    - name: Create Load Balancer
-      local_action:
-        module: ec2_elb_lb
-        state: present
-        name: 'm5-image-gallery-nlb'
-        scheme: internet-facing
-        security_group_ids: "{{ sg_userservice_tag.group_id }}, {{ developer_sg.group_id }}"
-        subnets: "{{ public_subnet.subnet.id }},{{ public_subnet_2.subnet.id }}"
-        #zones: us-east-2a, us-east-2b
-        listeners:
-          - protocol: http
-            load_balancer_port: 80
-            instance_port: 80
-          - protocol: https
-            load_balancer_port: 443
-            instance_port: 443
-            ssl_certificate_id: "arn:aws:acm:us-east-2:594209649798:certificate/1ce86900-6b20-46e3-94d1-ee9b96fa27c4"
-        tags:
-          Name: "M5 Load Balancer"
-          Module: 5
-        wait: yes
+    # - name: Target Group using different method
+    #   elb_target_group:
+    #     name: m5-target-group
+    #     protocol: tcp
+    #     port: 80
+    #     vpc_id: "{{ vpc.vpc.id }}"
+    #     deregistration_delay_timeout: 60
+    #     stickiness_enabled: True
+    #     stickiness_lb_cookie_duration: 86400
+    #     health_check_path: /
+    #     successful_response_codes: "200"
+    #     health_check_interval: "20"
+    #     state: present
+    #   register: target_group
 
-    - name: Create Target Group
+    #   elb_target:
+    #     target_group_name: m5-target-group
+    #     target_id: "{{ item.instance_id }}"
+    #     target_port: 80
+    #     state: present
+    #     with_items: "{{ ec2_proxy.instances }}"
+    #   when: ec2_proxy.instances|length > 0
+
+    - name: Create Target Group (old)
       elb_target_group:
         name: m5-target-group
         protocol: tcp
         port: 80
         vpc_id: "{{ vpc.vpc.id }}"
+        stickiness_type: source_ip
+        stickiness_enabled: False
+        # stickiness_lb_cookie_duration: 86400
+        # health_check_path: /
+        # successful_response_codes: "200"
+        # health_check_interval: "30"
         state: present
       register: target_group
+    
+    - name: Delete previous load balancer for testing
+      elb_network_lb:
+        name: m5-image-gallery-nlb
+        state: absent
+        wait: yes
+        wait_timeout: 600
+
+    - name: allocate 1st eip - reuse unallocted ips if tag reserved is nope
+      ec2_eip:
+        in_vpc: yes
+        reuse_existing_ip_allowed: yes
+        tag_name: reserved
+        tag_value: nope
+      register: eip_1
+
+    - name: tag the elastic IP
+      ec2_tag:
+        resource: "{{ eip_1.allocation_id }}"
+        tags:
+          Name: M5 Load Balancer 1
+          reserved: nope
+
+    #reallocate a second eip
+    - name: allocate 2nd eip - reuse unallocted ips if tag reserved is nope
+      ec2_eip:
+        in_vpc: yes
+        reuse_existing_ip_allowed: yes
+        tag_name: reuse
+        tag_value: yep
+      register: eip_2
+
+    - name: tag the 2nsd elastic IP
+      ec2_tag:
+        resource: "{{ eip_2.allocation_id }}"
+        tags:
+          Name: M5 Load Balancer 2
+          reuse: yep
+        
+    # This works but need to re-allocate
+    #
+    # - name: Allocate an Elastic IP
+    #   ec2_eip:
+    #     state: present
+    #     tag_name: Name
+    #     tag_value: M5 Load Balancer 1
+    #     reuse_existing_ip_allowed: yes
+    #     allow_reassociation: yes
+    #   register: eip_1
+
+    # - name: Allocate a second Elastic IP
+    #   ec2_eip:
+    #     state: present
+    #     tag_name: Name
+    #     tag_value: M5 Load Balancer 2
+    #     allow_reassociation: yes
+    #     reuse_existing_ip_allowed: yes
+    #   register: eip_2
+
+    - name: Create Load Balancer
+      elb_network_lb:
+        name: m5-image-gallery-nlb
+        subnet_mappings:
+          - SubnetId: "{{ public_subnet.subnet.id }}"
+            AllocationId: "{{ eip_1.allocation_id }}"
+          - SubnetId: "{{ public_subnet_2.subnet.id }}"
+            AllocationId: "{{ eip_2.allocation_id }}"
+        listeners:
+          - Protocol: TCP
+            Port: 80 # Required. The port on which the load balancer is listening.
+            DefaultActions:
+              - Type: forward # Required. Only 'forward' is accepted at this time
+                TargetGroupName: "{{ target_group.target_group_name }}" # Required. The name of the target group
+          - Protocol: TLS # Required. The protocol for connections from clients to the load balancer (TCP or TLS) (case-sensitive).
+            Port: 443 # Required. The port on which the load balancer is listening.
+            Certificates:
+              - CertificateArn: arn:aws:acm:us-east-2:594209649798:certificate/1ce86900-6b20-46e3-94d1-ee9b96fa27c4
+            DefaultActions:
+              - Type: forward # Required. Only 'forward' is accepted at this time
+                TargetGroupName: "{{ target_group.target_group_name }}" # Required. The name of the target group
+        state: present
+        wait: yes
+        wait_timeout: 600
+      register: load_balancer
+
+
+
+    # # second time with second eip reallocation
+    # - name: Create Load Balancer
+    #   elb_network_lb:
+    #     name: m5-image-gallery-nlb
+    #     subnet_mappings:
+    #       - SubnetId: "{{ public_subnet_2.subnet.id }}"
+    #         AllocationId: "{{ eip_2.allocation_id }}"
+    #     listeners:
+    #       - Protocol: TCP
+    #         Port: 80 # Required. The port on which the load balancer is listening.
+    #         DefaultActions:
+    #           - Type: forward # Required. Only 'forward' is accepted at this time
+    #             TargetGroupName: "{{ target_group.target_group_name }}" # Required. The name of the target group
+    #     state: present
+    #   register: load_balancer
+
+    # - name: Create Load Balancer
+    #   local_action:
+    #     module: ec2_elb_lb
+    #     state: present
+    #     name: 'm5-image-gallery-nlb'
+    #     scheme: internet-facing
+    #     security_group_ids: "{{ sg_userservice_tag.group_id }}, {{ developer_sg.group_id }}"
+    #     subnets: "{{ public_subnet.subnet.id }},{{ public_subnet_2.subnet.id }}"
+    #     #zones: us-east-2a, us-east-2b
+    #     listeners:
+    #       - protocol: http
+    #         load_balancer_port: 80
+    #         instance_port: 80
+    #       - protocol: https
+    #         load_balancer_port: 443
+    #         instance_port: 443
+    #         ssl_certificate_id: "arn:aws:acm:us-east-2:594209649798:certificate/1ce86900-6b20-46e3-94d1-ee9b96fa27c4"
+    #     tags:
+    #       Name: "M5 Load Balancer"
+    #       Module: 5
+    #     wait: yes
+
