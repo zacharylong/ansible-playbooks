@@ -21,28 +21,54 @@
           Name: Mod5 Public EC2
           Module: 5
           #Department: Accounting
+        instance_profile_name: "{{ iam_s3_role.iam_role.role_name }}"
         wait: yes
         vpc_subnet_id: "{{ public_subnet.subnet.id }}"
         assign_public_ip: yes
         exact_count: 1
         count_tag:
           Name: Mod5 Public EC2
+        user_data: "{{ lookup('file', './scripts/deploy_webapp.sh') }}"
+      register: public_ec2
+    
+    # - name: Add the newly created host so that we can further contact it
+    #   add_host:
+    #     name: "{{ public_ec2.public_ip }}"
+    #     groups: webservers
+    #   with_items: "{{ public_ec2.instances }}"
 
-    - name: Create Ec2 in Private Subnet
-      ec2: 
-        key_name: auburnec2
-        group: 
-          - "{{ developer_sg.group_name }}"
-          - "{{ sg_userservice_tag.group_name }}"
-        instance_type: t3.nano
-        image: "{{ ami_id }}"
-        instance_tags:
-          Name: Mod5 Private EC2
-          Module: 5
-          Department: Accounting
-        wait: yes
-        vpc_subnet_id: "{{ private_subnet.subnet.id }}"
-        assign_public_ip: yes
-        exact_count: 1
-        count_tag:
-          Name: Mod5 Private EC2
+    # - name: Add instances to host group
+    #   local_action: add_host hostname= groupname=my-security-group
+    #   with_items: public_ec2.instances
+
+    # - name: Tag instances
+    #   local_action: ec2_tag resource= region=us-east-2 state=present
+    #   with_items: public_ec2.instances
+    #   args:
+    #     tags:
+    #       Name: M5DevMachine
+
+    - name: Give everyone a minute
+      pause: minutes=1
+
+    # Dont really need this at the moment, everything
+    # is in the public subnet
+    #
+    # - name: Create Ec2 in Private Subnet
+    #   ec2: 
+    #     key_name: auburnec2
+    #     group: 
+    #       - "{{ developer_sg.group_name }}"
+    #       - "{{ sg_userservice_tag.group_name }}"
+    #     instance_type: t3.nano
+    #     image: "{{ ami_id }}"
+    #     instance_tags:
+    #       Name: Mod5 Private EC2
+    #       Module: 5
+    #       Department: Accounting
+    #     wait: yes
+    #     vpc_subnet_id: "{{ private_subnet.subnet.id }}"
+    #     assign_public_ip: yes
+    #     exact_count: 1
+    #     count_tag:
+    #       Name: Mod5 Private EC2

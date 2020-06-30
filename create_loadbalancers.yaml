@@ -131,6 +131,7 @@
             DefaultActions:
               - Type: forward # Required. Only 'forward' is accepted at this time
                 TargetGroupName: "{{ target_group.target_group_name }}" # Required. The name of the target group
+
         state: present
         wait: yes
         wait_timeout: 600

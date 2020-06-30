@@ -1,9 +1,38 @@
 ---
-- hosts: localhost
+
+- hosts: my-security-group
+  become: yes
   gather_facts: no
-  module_defaults:
-    group/aws:
-      #profile: auburn
-      region: "us-east-2"
+  remote_user: ec2-user
+  
   tasks:
 
+    # - name: Run a script with arguments (free form)
+    #   script: './scripts/ec2-development.sh'
+    #   become: true
+
+    # - name: Run a 2nd script with arguments (free form)
+    #   script: './scripts/deploy_webapp.sh'
+    #   become: true
+
+    - name: Transfer the Development script
+      copy: src='./scripts/ec2-development.sh' dest='/home/ec2-user' mode=0777
+
+    - name: Execute the Development script
+      command: sh /home/ec2-user/ec2-development.sh
+
+    - name: Transfer the script
+      copy: src='./scripts/deploy_webapp.sh' dest='/home/ec2-user' mode=0777
+
+    - name: Execute the script
+      command: sh /home/ec2-user/deploy_webapp.sh
+
+    
+    #   #automate deploying the config files
+    # - name: Add instance public IP to host group
+    #   add_host: hostname={{ public_ec2.public_ip }} groups=devhost
+
+
+# TODO: Need to automate the deploy process, copying the files
+# from python-image-gallery github and then deploy to the S3 buckets
+# the boot scripts and nginx configs

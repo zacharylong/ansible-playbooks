@@ -5,6 +5,7 @@
     index_file: developer/var/www/html/index.html
     apache_user: apache
     apache_group: apache
+
   tasks:
     - name: Install emacs-nox
       package:
@@ -15,33 +16,39 @@
       package:
         name: nano
         state: present
-    - name: Install Amazon apache
-      when: 
-        - ansible_facts['distribution'] == 'Amazon'
+    - name: Install git
       package:
-        name: httpd
+        name: git
         state: present
-    - name: Install Ubuntu apache
-      when: 
-        - ansible_facts['distribution'] == 'Ubuntu'
-      package:
-        name: apache2
-        state: present
-    - name: Copy index.html
-      copy:
-        src: "{{ index_file }}"
-        dest: /var/www/html/index.html
-    - name: State Amazon apache
-      when:
-        - ansible_facts['distribution'] == 'Amazon'
-      service:
-        name: httpd
-        state: started
-        enabled: true
-    - name: State Ubuntu apache
-      when:
-        - ansible_facts['distribution'] == 'Ubuntu'
-      service:  
-        name: apache
-        state: started
-        enabled: true
+    
+
+    # - name: Install Amazon apache
+    #   when: 
+    #     - ansible_facts['distribution'] == 'Amazon'
+    #   package:
+    #     name: httpd
+    #     state: present
+    # - name: Install Ubuntu apache
+    #   when: 
+    #     - ansible_facts['distribution'] == 'Ubuntu'
+    #   package:
+    #     name: apache2
+    #     state: present
+    # - name: Copy index.html
+    #   copy:
+    #     src: "{{ index_file }}"
+    #     dest: /var/www/html/index.html
+    # - name: State Amazon apache
+    #   when:
+    #     - ansible_facts['distribution'] == 'Amazon'
+    #   service:
+    #     name: httpd
+    #     state: started
+    #     enabled: true
+    # - name: State Ubuntu apache
+    #   when:
+    #     - ansible_facts['distribution'] == 'Ubuntu'
+    #   service:  
+    #     name: apache
+    #     state: started
+    #     enabled: true
