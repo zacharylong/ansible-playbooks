@@ -9,6 +9,9 @@
         region: "us-east-2"
   tasks:
   
+    # This EC2 just loads the User Data to set up the buckets with the /deploy command for the web app
+    # Copying the initial nginx files and the ec2-prod scripts to simulate the development machine
+    #
     - name: Create EC2 in Public Subnet
       ec2: 
         key_name: auburnec2
